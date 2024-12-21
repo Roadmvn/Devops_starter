@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "tailwindcss-react-native": "^1.7.10"
+  }
+}
