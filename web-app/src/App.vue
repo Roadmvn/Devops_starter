@@ -1,36 +1,39 @@
 <template>
-  <div id="app" class="min-h-screen bg-gray-100">
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+  <div class="min-h-screen bg-gray-100">
+    <NavBar v-if="authStore.isAuthenticated" />
+    <main class="container mx-auto px-4 py-8">
+      <router-view></router-view>
+    </main>
+
+    <!-- Composant de notifications -->
+    <NotificationToast />
   </div>
 </template>
 
-<script>
-export default {
-  name: 'App'
-}
+<script setup>
+import { computed } from 'vue'
+import { useAuthStore } from './stores/auth'
+import NavBar from './components/NavBar.vue'
+import NotificationToast from './components/NotificationToast.vue'
+
+const authStore = useAuthStore()
 </script>
 
-<style>
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
-
+<style scoped>
 #app {
-  width: 100%;
-  min-height: 100vh;
+  @apply min-h-screen bg-gray-100;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
 }
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.vue:hover {
+  filter: drop-shadow(0 0 2em #42b883aa);
 }
 </style>

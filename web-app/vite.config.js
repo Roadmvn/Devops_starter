@@ -16,11 +16,6 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true
       }
-    },
-    open: {
-      app: {
-        name: 'C:\\Users\\Dablaq\\AppData\\Local\\Programs\\Opera\\launcher.exe'
-      }
     }
   }
 })

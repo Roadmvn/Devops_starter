@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoiceController');
-const { auth, checkRole } = require('../middleware/auth');
+const { authenticateJWT, checkRole } = require('../middleware/auth');
 
 // Toutes les routes nécessitent une authentification
-router.use(auth);
+router.use(authenticateJWT);
 
 // Routes accessibles à tous les utilisateurs authentifiés
 router.post('/', invoiceController.createInvoice);

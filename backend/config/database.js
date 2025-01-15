@@ -4,7 +4,7 @@ require('dotenv').config();
 const dbName = process.env.DB_NAME || 'supermarket_db';
 const dbUser = process.env.DB_USER || 'root';
 const dbPassword = process.env.DB_PASSWORD || 'root';
-const dbHost = process.env.DB_HOST || 'localhost';
+const dbHost = process.env.DB_HOST || 'database';
 
 const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   host: dbHost,

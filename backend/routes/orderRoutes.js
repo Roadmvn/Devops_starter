@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
-const { auth, checkRole } = require('../middleware/auth');
+const { authenticateJWT, checkRole } = require('../middleware/auth');
 const { validateOrder } = require('../middleware/validation');
 
 // Routes protégées par authentification
-router.use(auth);
+router.use(authenticateJWT);
 
 // Créer une nouvelle commande
 router.post('/', validateOrder, orderController.createOrder);

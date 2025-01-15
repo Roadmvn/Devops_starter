@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
+const { globalLimiter, authLimiter } = require('./middleware/rateLimiter');
 require('dotenv').config();
 
 const { initializeDatabase } = require('./config/database');
@@ -19,11 +19,8 @@ app.use(helmet());
 app.use(cors());
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100
-});
-app.use('/api/', limiter);
+app.use(globalLimiter); // Limiteur global
+app.use('/api/auth', authLimiter); // Limiteur spécifique pour l'authentification
 
 // Logging
 app.use((req, res, next) => {
