@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const tokenService = require('../services/tokenService');
 const mailService = require('../services/mailService');
+const loginLogService = require('../services/loginLogService');
 
 exports.register = async (req, res) => {
     try {
@@ -54,15 +55,27 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const ipAddress = req.ip;
+        const userAgent = req.get('user-agent');
 
         const user = await User.findOne({ where: { email } });
         if (!user) {
+            await loginLogService.logLogin(null, ipAddress, userAgent, 'failed', 'User not found');
             return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
         }
 
         const isValidPassword = await user.validatePassword(password);
         if (!isValidPassword) {
+            await loginLogService.logLogin(user.id, ipAddress, userAgent, 'failed', 'Invalid password');
             return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+        }
+
+        // Vérifier si le compte est vérifié
+        if (!user.isEmailVerified) {
+            return res.status(403).json({ 
+                message: 'Veuillez vérifier votre email avant de vous connecter',
+                isEmailVerified: false
+            });
         }
 
         const accessToken = tokenService.generateAccessToken(user);
@@ -72,8 +85,22 @@ exports.login = async (req, res) => {
         user.lastLogin = new Date();
         await user.save();
 
-        res.json({ accessToken, refreshToken });
+        // Log successful login
+        await loginLogService.logLogin(user.id, ipAddress, userAgent, 'success');
+
+        res.json({ 
+            accessToken, 
+            refreshToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                role: user.role
+            }
+        });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Erreur lors de la connexion' });
     }
 };

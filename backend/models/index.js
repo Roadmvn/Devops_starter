@@ -5,19 +5,17 @@ const Invoice = require('./Invoice');
 const Order = require('./Order');
 
 // Définir les relations entre les modèles
-Invoice.belongsTo(User, { 
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
+User.hasMany(Order, { 
+    foreignKey: 'userId'
 });
-User.hasMany(Invoice, { 
+Order.belongsTo(User, { 
     foreignKey: 'userId'
 });
 
-Order.belongsTo(User, { 
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
+User.hasMany(Invoice, { 
+    foreignKey: 'userId'
 });
-User.hasMany(Order, { 
+Invoice.belongsTo(User, { 
     foreignKey: 'userId'
 });
 

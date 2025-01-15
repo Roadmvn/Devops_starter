@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.4",
     "axios": "^0.24.0",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
@@ -30,7 +31,9 @@
     "openfoodfacts-nodejs": "github:openfoodfacts/openfoodfacts-nodejs",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "passport-jwt": "^4.0.1",
     "sequelize": "^6.37.5",
+    "validator": "^13.12.0",
     "winston": "^3.17.0"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcrypt');
-const sequelize = require('../config/database');
+const jwt = require('jsonwebtoken');
+const { sequelize } = require('../config/database');
 
 const User = sequelize.define('User', {
     id: {
@@ -68,6 +69,19 @@ const User = sequelize.define('User', {
 User.prototype.validatePassword = async function(password) {
     if (!this.password) return false;
     return bcrypt.compare(password, this.password);
+};
+
+// Méthode pour générer un token JWT
+User.prototype.generateToken = function() {
+    return jwt.sign(
+        { 
+            id: this.id,
+            email: this.email,
+            role: this.role 
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+    );
 };
 
 module.exports = User;

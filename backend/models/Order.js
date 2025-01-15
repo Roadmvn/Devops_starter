@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
-const db = require('../config/database');
+const { sequelize } = require('../config/database');
 
-const Order = db.sequelize.define('Order', {
+const Order = sequelize.define('Order', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,

@@ -2,19 +2,15 @@ require('dotenv').config();
 
 module.exports = {
     accessToken: {
-        secret: process.env.JWT_ACCESS_SECRET || 'your-access-secret-key',
-        expiresIn: '15m' // 15 minutes
+        secret: process.env.JWT_SECRET || 'your-secret-key',
+        expiresIn: '24h'
     },
     refreshToken: {
         secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key',
-        expiresIn: '7d' // 7 days
+        expiresIn: '7d'
     },
     emailVerification: {
-        secret: process.env.JWT_EMAIL_VERIFICATION_SECRET || 'your-email-verification-secret',
-        expiresIn: '24h' // 24 hours
-    },
-    passwordReset: {
-        secret: process.env.JWT_PASSWORD_RESET_SECRET || 'your-password-reset-secret',
-        expiresIn: '1h' // 1 hour
+        secret: process.env.JWT_EMAIL_SECRET || 'your-email-secret-key',
+        expiresIn: '24h'
     }
 };
