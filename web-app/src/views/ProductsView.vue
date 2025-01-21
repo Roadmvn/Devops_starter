@@ -1,90 +1,237 @@
 <template>
-  <div class="py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-      <div class="flex justify-between items-center">
-        <h1 class="text-2xl font-semibold text-gray-900">Produits</h1>
-        <div class="space-x-4">
-          <button 
-            v-if="isManagerOrAdmin"
-            @click="openNewProductModal"
-            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Ajouter un Produit
-          </button>
-        </div>
+  <div class="products-page p-6">
+    <div class="mb-6">
+      <!-- En-tête avec fil d'Ariane -->
+      <div class="text-sm text-gray-600 mb-2">
+        <a href="#" class="hover:text-primary">Accueil</a>
+        <span class="mx-2">/</span>
+        <span>Gestion des produits</span>
       </div>
-    </div>
 
-    <!-- Modal d'ajout/modification de produit -->
-    <ProductForm
-      v-if="showProductModal"
-      :product="selectedProduct"
-      @submit="handleSubmit"
-      @cancel="closeProductModal"
-    />
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-      <div class="py-4 space-y-4">
-        <!-- Filtres avancés -->
-        <AdvancedFilters
-          :categories="categories"
-          @filter="handleFilter"
-          @export="handleExport"
-        />
-
-        <!-- Liste des produits -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div v-for="product in filteredProducts" :key="product.id" 
-               class="bg-white rounded-lg shadow overflow-hidden product-card">
-            <img 
-              :src="product.imageUrl || '/placeholder-product.png'" 
-              :alt="product.name"
-              class="w-full h-48 object-cover"
-            />
-            <div class="p-4 product-info">
-              <h3 class="text-xl font-semibold">{{ product.name }}</h3>
-              <p class="text-gray-600 brand">{{ product.brand }}</p>
-              <p class="text-gray-600 category">{{ product.category }}</p>
-              <div class="details">
-                <span class="price">Prix: {{ formatPrice(product.price) }} €</span>
-                <span class="stock" :class="{ 'low-stock': product.stock < 10 }">
-                  Stock: {{ product.stock }} unités
-                </span>
-              </div>
+      <!-- Titre et actions -->
+      <div class="bg-white rounded-lg p-4 shadow-sm">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-bold">Produits</h1>
+          
+          <div class="flex items-center gap-4">
+            <!-- Actions principales -->
+            <div class="flex items-center gap-2">
+              <button @click="openEditModal()" class="btn btn-primary flex items-center gap-2">
+                <i class="fas fa-plus"></i>
+                Ajouter un produit
+              </button>
             </div>
-            <div class="product-actions">
-              <button 
-                v-if="isManagerOrAdmin"
-                @click="handleEdit(product)"
-                class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 btn btn-edit"
-              >
-                Modifier
+
+            <!-- Export -->
+            <div class="flex items-center gap-2">
+              <button @click="exportToPDF" class="btn btn-outline flex items-center gap-2">
+                <i class="fas fa-file-pdf text-red-500"></i>
+                <span class="hidden md:inline">Exporter en PDF</span>
+                <span class="md:hidden">PDF</span>
               </button>
-              <button 
-                v-if="isManagerOrAdmin"
-                @click="updateStock(product)"
-                class="bg-green-100 text-green-600 px-3 py-1 rounded hover:bg-green-200 btn btn-stock"
-              >
-                Stock
-              </button>
-              <button 
-                v-if="isAdmin"
-                @click="handleDelete(product)"
-                class="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 btn btn-delete"
-              >
-                Supprimer
+              <button @click="exportToExcel" class="btn btn-outline flex items-center gap-2">
+                <i class="fas fa-file-excel text-green-500"></i>
+                <span class="hidden md:inline">Exporter en Excel</span>
+                <span class="md:hidden">Excel</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Pagination -->
-        <TablePagination
-          v-if="totalItems > 0"
-          v-model:currentPage="currentPage"
-          :total-items="totalItems"
-          :per-page="perPage"
-        />
+        <!-- Statistiques rapides -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div class="bg-green-50 p-4 rounded-lg">
+            <div class="text-green-600 text-sm font-medium">Produits en stock</div>
+            <div class="text-2xl font-bold">{{ productsInStock }}</div>
+          </div>
+          
+          <div class="bg-yellow-50 p-4 rounded-lg">
+            <div class="text-yellow-600 text-sm font-medium">Stock faible</div>
+            <div class="text-2xl font-bold">{{ lowStockProducts }}</div>
+          </div>
+          
+          <div class="bg-red-50 p-4 rounded-lg">
+            <div class="text-red-600 text-sm font-medium">Rupture de stock</div>
+            <div class="text-2xl font-bold">{{ outOfStockProducts }}</div>
+          </div>
+          
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <div class="text-blue-600 text-sm font-medium">Valeur totale</div>
+            <div class="text-2xl font-bold">{{ formatPrice(totalValue) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters-section bg-white rounded-lg p-4 mb-6 shadow-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Recherche -->
+        <div class="search-bar">
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-input pl-10 pr-4 py-2 w-full rounded-lg"
+              placeholder="Rechercher un produit..."
+            >
+          </div>
+        </div>
+
+        <!-- Catégories -->
+        <div class="filter-group">
+          <label class="block text-sm font-medium mb-2">Catégories</label>
+          <select v-model="selectedCategories" class="form-select w-full" multiple>
+            <option v-for="category in availableCategories" :key="category" :value="category">
+              {{ category }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Marques -->
+        <div class="filter-group">
+          <label class="block text-sm font-medium mb-2">Marques</label>
+          <select v-model="selectedBrands" class="form-select w-full" multiple>
+            <option v-for="brand in availableBrands" :key="brand" :value="brand">
+              {{ brand }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Stock -->
+        <div class="filter-group">
+          <label class="block text-sm font-medium mb-2">Disponibilité</label>
+          <select v-model="stockFilter" class="form-select w-full">
+            <option value="all">Tous les produits</option>
+            <option value="in-stock">En stock</option>
+            <option value="low-stock">Stock faible</option>
+            <option value="out-of-stock">Rupture de stock</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Prix -->
+      <div class="mt-4">
+        <label class="block text-sm font-medium mb-2">Prix</label>
+        <div class="flex items-center gap-4">
+          <span class="text-sm">{{ formatPrice(priceRange[0]) }}</span>
+          <input 
+            type="range" 
+            v-model="priceRange[0]" 
+            :min="minPrice" 
+            :max="maxPrice"
+            class="flex-grow"
+          >
+          <input 
+            type="range" 
+            v-model="priceRange[1]" 
+            :min="minPrice" 
+            :max="maxPrice"
+            class="flex-grow"
+          >
+          <span class="text-sm">{{ formatPrice(priceRange[1]) }}</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-2 mt-4">
+        <button @click="resetFilters" class="btn btn-outline">
+          <i class="fas fa-undo mr-2"></i>
+          Réinitialiser
+        </button>
+      </div>
+    </div>
+
+    <!-- Liste des produits -->
+    <div class="products-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div v-for="product in paginatedProducts" :key="product.id" 
+           class="product-card bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+        <div class="relative">
+          <img :src="product.imageUrl" :alt="product.name" class="w-full h-48 object-cover rounded-t-lg">
+          <div class="absolute top-2 right-2 px-2 py-1 rounded-full text-sm font-medium"
+               :class="{
+                 'bg-green-500 text-white': product.stock > 10,
+                 'bg-yellow-500 text-white': product.stock <= 10 && product.stock > 0,
+                 'bg-red-500 text-white': product.stock === 0
+               }">
+            {{ product.stock }} en stock
+          </div>
+        </div>
+        
+        <div class="p-4">
+          <h3 class="text-lg font-semibold mb-2">{{ product.name }}</h3>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm bg-gray-100 px-2 py-1 rounded">{{ product.category }}</span>
+            <span class="text-sm bg-gray-100 px-2 py-1 rounded">{{ product.brand }}</span>
+          </div>
+          <div class="flex items-center gap-2 mb-4">
+            <div class="text-yellow-400">
+              <i v-for="n in Math.floor(product.rating)" :key="n" class="fas fa-star"></i>
+              <i v-if="product.rating % 1 > 0" class="fas fa-star-half-alt"></i>
+            </div>
+            <span class="text-sm text-gray-600">{{ product.rating }}/5</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xl font-bold text-primary">{{ formatPrice(product.price) }}</span>
+            <div class="flex gap-2">
+              <button @click="openEditModal(product)" class="btn-icon text-blue-600 hover:bg-blue-50">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button @click="openDeleteModal(product)" class="btn-icon text-red-600 hover:bg-red-50">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-6 flex justify-between items-center bg-white rounded-lg p-4">
+      <div class="text-sm text-gray-600">
+        Affichage {{ paginationStart + 1 }} à {{ paginationEnd }} sur {{ totalItems }} résultats
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button 
+          @click="previousPage" 
+          :disabled="currentPage === 1"
+          class="btn btn-icon"
+          :class="{ 'opacity-50 cursor-not-allowed': currentPage === 1 }"
+        >
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div class="flex gap-1">
+          <button 
+            v-for="page in displayedPages" 
+            :key="page"
+            @click="goToPage(page)"
+            class="btn btn-icon min-w-[2.5rem]"
+            :class="{ 'bg-primary text-white': currentPage === page }"
+          >
+            {{ page }}
+          </button>
+        </div>
+
+        <button 
+          @click="nextPage" 
+          :disabled="currentPage === totalPages"
+          class="btn btn-icon"
+          :class="{ 'opacity-50 cursor-not-allowed': currentPage === totalPages }"
+        >
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600">Produits par page:</span>
+        <select v-model="itemsPerPage" class="form-select w-20">
+          <option :value="12">12</option>
+          <option :value="24">24</option>
+          <option :value="48">48</option>
+        </select>
       </div>
     </div>
   </div>
@@ -92,96 +239,190 @@
 
 <script>
 import { ref, computed } from 'vue'
-import AdvancedFilters from '../components/AdvancedFilters.vue'
-import ProductForm from '../components/ProductForm.vue'
-import TablePagination from '../components/TablePagination.vue'
+import { jsPDF } from 'jspdf'
+import * as XLSX from 'xlsx'
 
 export default {
   name: 'ProductsView',
-  components: {
-    AdvancedFilters,
-    ProductForm,
-    TablePagination
-  },
+  
   setup() {
+    // État
     const products = ref([
       {
         id: 1,
-        name: 'Ordinateur portable Pro',
+        name: 'Produit 1',
+        price: 99.99,
         category: 'Électronique',
-        brand: 'TechBrand',
-        price: 1299.00,
-        stock: 125,
-        imageUrl: '/laptop.jpg'
+        brand: 'MarqueA',
+        stock: 15,
+        rating: 4.5,
+        imageUrl: 'https://via.placeholder.com/200'
       },
-      {
-        id: 2,
-        name: 'Smartphone X',
-        category: 'Électronique',
-        brand: 'PhoneBrand',
-        price: 899.00,
-        stock: 98,
-        imageUrl: '/phone.jpg'
-      },
-      {
-        id: 3,
-        name: 'Casque sans fil',
-        category: 'Accessoires',
-        brand: 'AudioBrand',
-        price: 199.00,
-        stock: 78,
-        imageUrl: '/headphones.jpg'
-      },
-      {
-        id: 4,
-        name: 'Tablette Air',
-        category: 'Électronique',
-        brand: 'TechBrand',
-        price: 649.00,
-        stock: 65,
-        imageUrl: '/tablet.jpg'
-      }
+      // Ajoutez d'autres produits...
     ])
 
-    const loading = ref(false)
-    const filters = ref({
-      search: '',
-      category: '',
-      minPrice: null,
-      maxPrice: null
+    const searchQuery = ref('')
+    const selectedCategories = ref([])
+    const selectedBrands = ref([])
+    const stockFilter = ref('all')
+    const priceRange = ref([0, 1000])
+    const currentPage = ref(1)
+    const itemsPerPage = ref(12)
+    
+    const showEditModal = ref(false)
+    const showDeleteModal = ref(false)
+    const editingProduct = ref(null)
+    const productToDelete = ref(null)
+    const isEditing = ref(false)
+
+    // Computed properties
+    const availableCategories = computed(() => {
+      return [...new Set(products.value.map(p => p.category))]
     })
 
-    const categories = computed(() => {
-      const uniqueCategories = new Set(products.value.map(p => p.category))
-      return Array.from(uniqueCategories)
+    const availableBrands = computed(() => {
+      return [...new Set(products.value.map(p => p.brand))]
     })
 
     const filteredProducts = computed(() => {
-      let result = products.value
+      return products.value.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        const matchesCategories = selectedCategories.value.length === 0 || selectedCategories.value.includes(product.category)
+        const matchesBrands = selectedBrands.value.length === 0 || selectedBrands.value.includes(product.brand)
+        const matchesPrice = product.price >= priceRange.value[0] && product.price <= priceRange.value[1]
+        
+        let matchesStock = true
+        if (stockFilter.value === 'in-stock') matchesStock = product.stock > 10
+        if (stockFilter.value === 'low-stock') matchesStock = product.stock <= 10 && product.stock > 0
+        if (stockFilter.value === 'out-of-stock') matchesStock = product.stock === 0
 
-      if (filters.value.search) {
-        const searchLower = filters.value.search.toLowerCase()
-        result = result.filter(p => 
-          p.name.toLowerCase().includes(searchLower) ||
-          p.brand.toLowerCase().includes(searchLower)
-        )
-      }
-
-      if (filters.value.category) {
-        result = result.filter(p => p.category === filters.value.category)
-      }
-
-      if (filters.value.minPrice) {
-        result = result.filter(p => p.price >= filters.value.minPrice)
-      }
-
-      if (filters.value.maxPrice) {
-        result = result.filter(p => p.price <= filters.value.maxPrice)
-      }
-
-      return result
+        return matchesSearch && matchesCategories && matchesBrands && matchesPrice && matchesStock
+      })
     })
 
+    // Pagination
+    const totalItems = computed(() => filteredProducts.value.length)
+    const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
+    const paginationStart = computed(() => (currentPage.value - 1) * itemsPerPage.value)
+    const paginationEnd = computed(() => Math.min(paginationStart.value + itemsPerPage.value, totalItems.value))
+    const paginatedProducts = computed(() => {
+      return filteredProducts.value.slice(paginationStart.value, paginationEnd.value)
+    })
+
+    // Stats
+    const productsInStock = computed(() => products.value.filter(p => p.stock > 10).length)
+    const lowStockProducts = computed(() => products.value.filter(p => p.stock <= 10 && p.stock > 0).length)
+    const outOfStockProducts = computed(() => products.value.filter(p => p.stock === 0).length)
+    const totalValue = computed(() => products.value.reduce((sum, p) => sum + (p.price * p.stock), 0))
+
+    // Méthodes CRUD
+    const openEditModal = (product = null) => {
+      isEditing.value = !!product
+      editingProduct.value = product ? { ...product } : {
+        name: '',
+        price: 0,
+        category: '',
+        brand: '',
+        stock: 0,
+        rating: 0,
+        imageUrl: 'https://via.placeholder.com/200'
+      }
+      showEditModal.value = true
+    }
+
+    const closeEditModal = () => {
+      showEditModal.value = false
+      editingProduct.value = null
+    }
+
+    const handleSubmit = () => {
+      if (isEditing.value) {
+        const index = products.value.findIndex(p => p.id === editingProduct.value.id)
+        if (index !== -1) {
+          products.value[index] = { ...editingProduct.value }
+        }
+      } else {
+        const newId = Math.max(...products.value.map(p => p.id)) + 1
+        products.value.push({ ...editingProduct.value, id: newId })
+      }
+      closeEditModal()
+    }
+
+    const openDeleteModal = (product) => {
+      productToDelete.value = product
+      showDeleteModal.value = true
+    }
+
+    const closeDeleteModal = () => {
+      showDeleteModal.value = false
+      productToDelete.value = null
+    }
+
+    const confirmDeleteProduct = () => {
+      const index = products.value.findIndex(p => p.id === productToDelete.value.id)
+      if (index !== -1) {
+        products.value.splice(index, 1)
+      }
+      closeDeleteModal()
+    }
+
+    // Méthodes d'export
+    const exportToPDF = () => {
+      const doc = new jsPDF()
+      
+      // En-tête
+      doc.setFontSize(20)
+      doc.text('Liste des produits', 20, 20)
+      
+      // Colonnes
+      const columns = ['Nom', 'Prix', 'Stock', 'Catégorie', 'Marque']
+      let y = 40
+      
+      // Style du tableau
+      doc.setFontSize(12)
+      doc.setTextColor(0, 0, 0)
+      
+      // En-tête du tableau
+      columns.forEach((col, i) => {
+        doc.text(col, 20 + (i * 35), y)
+      })
+      y += 10
+      
+      // Données
+      filteredProducts.value.forEach(product => {
+        doc.text(product.name.substring(0, 15), 20, y)
+        doc.text(formatPrice(product.price), 55, y)
+        doc.text(product.stock.toString(), 90, y)
+        doc.text(product.category.substring(0, 15), 125, y)
+        doc.text(product.brand.substring(0, 15), 160, y)
+        y += 10
+        
+        if (y >= 280) {
+          doc.addPage()
+          y = 20
+        }
+      })
+      
+      doc.save('produits.pdf')
+    }
+
+    const exportToExcel = () => {
+      const data = filteredProducts.value.map(product => ({
+        'Nom': product.name,
+        'Prix': product.price,
+        'Stock': product.stock,
+        'Catégorie': product.category,
+        'Marque': product.brand,
+        'Note': product.rating
+      }))
+      
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Produits')
+      XLSX.writeFile(wb, 'produits.xlsx')
+    }
+
+    // Utilitaires
     const formatPrice = (price) => {
       return new Intl.NumberFormat('fr-FR', {
         style: 'currency',
@@ -189,213 +430,187 @@ export default {
       }).format(price)
     }
 
-    const isManagerOrAdmin = computed(() => {
-      const role = 'manager' // TODO: get role from store
-      return role === 'manager' || role === 'admin'
+    const adjustStock = (amount) => {
+      if (editingProduct.value) {
+        editingProduct.value.stock = Math.max(0, editingProduct.value.stock + amount)
+      }
+    }
+
+    // Pagination
+    const previousPage = () => {
+      if (currentPage.value > 1) currentPage.value--
+    }
+
+    const nextPage = () => {
+      if (currentPage.value < totalPages.value) currentPage.value++
+    }
+
+    const goToPage = (page) => {
+      currentPage.value = page
+    }
+
+    const displayedPages = computed(() => {
+      const delta = 2
+      const range = []
+      const rangeWithDots = []
+      let l
+
+      for (let i = 1; i <= totalPages.value; i++) {
+        if (i === 1 || i === totalPages.value || (i >= currentPage.value - delta && i <= currentPage.value + delta)) {
+          range.push(i)
+        }
+      }
+
+      range.forEach(i => {
+        if (l) {
+          if (i - l === 2) {
+            rangeWithDots.push(l + 1)
+          } else if (i - l !== 1) {
+            rangeWithDots.push('...')
+          }
+        }
+        rangeWithDots.push(i)
+        l = i
+      })
+
+      return rangeWithDots
     })
 
-    const isAdmin = computed(() => 'admin' === 'admin') // TODO: get role from store
-
-    const showProductModal = ref(false)
-    const selectedProduct = ref(null)
-    const currentPage = ref(1)
-    const perPage = ref(10)
-    const totalItems = computed(() => filteredProducts.value.length)
-
-    const handleFilter = (newFilters) => {
-      filters.value = newFilters
-      currentPage.value = 1
-    }
-
-    const handleExport = async ({ type, filters }) => {
-      try {
-        const dataToExport = products.value.map(product => ({
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          stock: product.stock
-        }))
-
-        if (type === 'pdf') {
-          // await exportService.exportToPDF(dataToExport, filters)
-        } else if (type === 'excel') {
-          // await exportService.exportToExcel(dataToExport, filters)
-        }
-      } catch (error) {
-        console.error('Erreur lors de l\'export :', error)
-      }
-    }
-
-    const openNewProductModal = () => {
-      selectedProduct.value = null;
-      showProductModal.value = true;
-    };
-
-    const handleProductImported = (product) => {
-      products.value.unshift(product);
-      // notificationStore.success('Produit importé avec succès');
-    };
-
-    const closeProductModal = () => {
-      showProductModal.value = false;
-      selectedProduct.value = null;
-    };
-
-    const handleEdit = (product) => {
-      selectedProduct.value = product;
-      showProductModal.value = true;
-    };
-
-    const handleSubmit = async (productData) => {
-      try {
-        if (selectedProduct.value) {
-          // Mise à jour d'un produit existant
-          const updatedData = {
-            id: selectedProduct.value.id,
-            name: productData.name,
-            brand: productData.brand,
-            category: productData.category,
-            price: Number(productData.price),
-            stock: Number(productData.stock)
-          };
-
-          console.log('Données envoyées pour mise à jour:', updatedData);
-          
-          // await axios.put(`/api/products/${selectedProduct.value.id}`, updatedData);
-          
-          // if (response.data && response.data.product) {
-          //   const index = products.value.findIndex(p => p.id === selectedProduct.value.id);
-          //   if (index !== -1) {
-          //     products.value[index] = response.data.product;
-          //     // notificationStore.success('Produit mis à jour avec succès');
-          //   }
-          // }
-          showProductModal.value = false;
-        } else {
-          // Création d'un nouveau produit
-          const newProduct = {
-            name: productData.name,
-            brand: productData.brand,
-            category: productData.category,
-            price: Number(productData.price),
-            stock: Number(productData.stock)
-          };
-
-          console.log('Données envoyées pour création:', newProduct);
-
-          // try {
-          //   const response = await axios.post('/api/products', newProduct);
-            
-          //   if (response.data && response.data.product) {
-          //     // Vérifier si le produit n'existe pas déjà dans la liste
-          //     const existingIndex = products.value.findIndex(p => p.id === response.data.product.id);
-          //     if (existingIndex === -1) {
-          //       products.value.unshift(response.data.product);
-          //     }
-          //     // notificationStore.success('Produit créé avec succès');
-          //     showProductModal.value = false;
-          //   }
-          // } catch (error) {
-          //   if (error.response && error.response.status === 409 && error.response.data.product) {
-          //     // Le produit existe déjà
-          //     const existingProduct = error.response.data.product;
-          //     const existingIndex = products.value.findIndex(p => p.id === existingProduct.id);
-              
-          //     if (existingIndex === -1) {
-          //       // Si le produit n'est pas dans la liste, l'ajouter
-          //       products.value.unshift(existingProduct);
-          //     } else {
-          //       // Si le produit est déjà dans la liste, le mettre à jour
-          //       products.value[existingIndex] = existingProduct;
-          //     }
-              
-          //     // notificationStore.info('Ce produit existe déjà dans la base de données');
-          //     showProductModal.value = false;
-          //   } else {
-          //     throw error;
-          //   }
-          // }
-        }
-      } catch (error) {
-        console.error('Erreur:', error);
-        // notificationStore.error(`Erreur lors de l'enregistrement : ${error.response?.data?.message || error.message}`);
-      }
-    };
-
-    const handleDelete = async (product) => {
-      try {
-        if (confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
-          // await deleteProduct(product.id);
-          products.value = products.value.filter(p => p.id !== product.id);
-          // notificationStore.success('Produit supprimé avec succès');
-        }
-      } catch (error) {
-        // notificationStore.error(`Erreur lors de la suppression : ${error.response?.data?.message || error.message}`);
-      }
-    };
-
     return {
+      // État
       products,
-      loading,
-      filters,
-      categories,
-      filteredProducts,
-      formatPrice,
-      isManagerOrAdmin,
-      isAdmin,
-      showProductModal,
-      selectedProduct,
+      searchQuery,
+      selectedCategories,
+      selectedBrands,
+      stockFilter,
+      priceRange,
       currentPage,
-      perPage,
+      itemsPerPage,
+      showEditModal,
+      showDeleteModal,
+      editingProduct,
+      productToDelete,
+      isEditing,
+
+      // Computed
+      availableCategories,
+      availableBrands,
+      filteredProducts,
+      paginatedProducts,
       totalItems,
-      handleFilter,
-      handleExport,
-      openNewProductModal,
-      handleProductImported,
-      closeProductModal,
-      handleEdit,
+      totalPages,
+      paginationStart,
+      paginationEnd,
+      displayedPages,
+      productsInStock,
+      lowStockProducts,
+      outOfStockProducts,
+      totalValue,
+
+      // Méthodes
+      openEditModal,
+      closeEditModal,
       handleSubmit,
-      handleDelete
+      openDeleteModal,
+      closeDeleteModal,
+      confirmDeleteProduct,
+      exportToPDF,
+      exportToExcel,
+      formatPrice,
+      adjustStock,
+      previousPage,
+      nextPage,
+      goToPage
     }
   }
 }
 </script>
 
-<style scoped>
+<style>
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary-dark;
+}
+
+.btn-outline {
+  @apply border border-gray-300 hover:bg-gray-50;
+}
+
+.btn-icon {
+  @apply p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200;
+}
+
+.form-input,
+.form-select {
+  @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary;
+}
+
 .product-card {
+  @apply overflow-hidden;
+}
+
+.product-card img {
+  @apply transition-transform duration-200;
+}
+
+.product-card:hover img {
+  @apply transform scale-105;
+}
+
+.text-primary {
+  @apply text-emerald-600;
+}
+
+.bg-primary {
+  @apply bg-emerald-600;
+}
+
+.hover\:bg-primary-dark:hover {
+  @apply bg-emerald-700;
+}
+
+.focus\:ring-primary:focus {
+  @apply ring-emerald-600;
+}
+
+.focus\:border-primary:focus {
+  @apply border-emerald-600;
+}
+</style>
+
+<style scoped>
+.price-slider {
+  @apply space-y-4;
+}
+
+.price-slider input[type="range"] {
+  @apply w-full appearance-none bg-gray-200 h-2 rounded-lg;
+}
+
+.price-slider input[type="range"]::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 rounded-full bg-primary border-2 border-white cursor-pointer;
+}
+
+.active-filter-tag {
   @apply transition-all duration-200;
 }
 
-.product-card:hover {
-  @apply transform scale-[1.02] shadow-lg;
+.active-filter-tag:hover {
+  @apply bg-blue-200;
 }
 
-.product-info {
-  @apply space-y-2;
+.saved-filter-tag {
+  @apply transition-all duration-200;
 }
 
-.details {
-  @apply flex justify-between items-center mt-4;
+.saved-filter-tag:hover {
+  @apply bg-gray-200;
 }
 
-.price {
-  @apply font-semibold text-purple-600;
-}
-
-.stock {
-  @apply text-sm text-gray-600;
-}
-
-.low-stock {
-  @apply text-red-500;
-}
-
-.product-actions {
-  @apply p-4 bg-gray-50 flex justify-end space-x-2;
-}
-
-.btn {
-  @apply text-sm font-medium transition-colors duration-200;
+.loading-overlay {
+  @apply transition-opacity duration-200;
 }
 </style>
