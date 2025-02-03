@@ -1,4 +1,5 @@
 module.exports = async (req, res, next) => {
+
     try {
         // 确保用户已通过 Auth Middleware 验证
         if (!req.user) {

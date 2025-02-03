@@ -186,7 +186,7 @@ const googleLogin = (req, res, next) => {
         // 生成 JWT
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
-            'c7fOuEeCk2ijM5aMLue',
+            process.env.JWT_SECRET_KEY,
             { expiresIn: '2h' }
         );
 
