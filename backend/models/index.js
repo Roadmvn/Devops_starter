@@ -1,57 +1,43 @@
-const db = require('../config/database');
-const User = require('./User');
-const Product = require('./Product');
-const Invoice = require('./Invoice');
-const Order = require('./Order');
+'use strict';
 
-// Définir les relations entre les modèles
-Invoice.belongsTo(User, { 
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
-});
-User.hasMany(Invoice, { 
-    foreignKey: 'userId'
-});
+const fs = require('fs');
+const path = require('path');
+const Sequelize = require('sequelize');
+const process = require('process');
+const basename = path.basename(__filename);
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.json')[env];
+const db = {};
 
-Order.belongsTo(User, { 
-    foreignKey: 'userId',
-    onDelete: 'CASCADE'
-});
-User.hasMany(Order, { 
-    foreignKey: 'userId'
-});
+let sequelize;
+if (config.use_env_variable) {
+  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+} else {
+  sequelize = new Sequelize(config.database, config.username, config.password, config);
+}
 
-// Créer la table de jointure pour Invoice-Product
-const InvoiceProduct = db.sequelize.define('InvoiceProduct', {
-    quantity: {
-        type: db.Sequelize.DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 1
-    },
-    price: {
-        type: db.Sequelize.DataTypes.DECIMAL(10, 2),
-        allowNull: false
-    }
-}, {
-    tableName: 'invoice_products',
-    timestamps: true,
-    underscored: true
-});
+fs
+  .readdirSync(__dirname)
+  .filter(file => {
+    return (
+      file.indexOf('.') !== 0 &&
+      file !== basename &&
+      file.slice(-3) === '.js' &&
+      file.indexOf('.test.js') === -1
+    );
+  })
+  .forEach(file => {
+    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    db[model.name] = model;
+  });
 
-Invoice.belongsToMany(Product, { 
-    through: InvoiceProduct,
-    foreignKey: 'invoiceId'
-});
-Product.belongsToMany(Invoice, { 
-    through: InvoiceProduct,
-    foreignKey: 'productId'
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
 });
 
-module.exports = {
-    sequelize: db.sequelize,
-    User,
-    Product,
-    Invoice,
-    Order,
-    InvoiceProduct
-};
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
+
+module.exports = db;

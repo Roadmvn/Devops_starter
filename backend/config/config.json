@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "root",
+    "password": "Jiojio000608.",
+    "database": "trinity",
+    "host": "89.156.15.147",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": "Jiojio000608.",
+    "database": "trinity",
+    "host": "89.156.15.147",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "root",
+    "password": "Jiojio000608.",
+    "database": "trinity",
+    "host": "89.156.15.147",
+    "dialect": "mysql"
+  }
+}

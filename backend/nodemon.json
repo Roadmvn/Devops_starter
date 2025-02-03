@@ -1,5 +1,6 @@
 {
-  "ignore": ["*.test.js", "*.spec.js", "node_modules/*", "logs/*"],
-  "delay": "2000",
-  "verbose": true
+  "watch": ["app.js", "routes/", "controllers/"],
+  "ext": "js,json,env",
+  "ignore": ["node_modules/"],
+  "exec": "node app.js"
 }

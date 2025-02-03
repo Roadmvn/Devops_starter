@@ -1,19 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController');
-const { auth, checkRole } = require('../middleware/auth');
-const { validateUser } = require('../middleware/validation');
+const authMiddleware = require('../middleware/authMiddleware');
+const isAdmin = require('../middleware/isAdmin');
+const {updateUser, getAllUsers, getUserById, updateUserByAdmin} = require("../controllers/userController"); // 导入 UserController
+const csrf = require('csurf');
 
-// Routes publiques
-router.post('/register', validateUser, userController.register);
-router.post('/login', userController.login);
+// 配置 CSRF 中间件
+const csrfProtection = csrf({ cookie: true });
 
-// Routes protégées
-router.use(auth);
-router.get('/profile', userController.getProfile);
-router.put('/profile', validateUser, userController.updateProfile);
+router.get('/users', authMiddleware, isAdmin, getAllUsers)
+router.get('/user/:id', authMiddleware, isAdmin, getUserById)
 
-// Routes admin
-router.get('/all', checkRole(['admin']), userController.getAllUsers);
+router.put('/update_user', authMiddleware, csrfProtection, (req, res, next) => {
+    console.log("CSRF Token from headers:", req.headers['x-csrf-token']); // 前端传递的 Token
+    console.log("CSRF Token from cookies:", req.cookies._csrf); // 后端 Cookie 存储的 Token
+    console.log("Session ID:", req.sessionID); // 当前的 Session 信息
+    next();
+}, updateUser);
+
+router.put('/updateUserByAdmin/:id',authMiddleware, isAdmin, updateUserByAdmin)
+
+router.get('/csrf-token', csrfProtection, (req, res) => {
+    res.status(200).json({ csrfToken: req.csrfToken() });
+});
 
 module.exports = router;

@@ -1,20 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-// Importer les routes
-const userRoutes = require('./userRoutes');
+// 引入 Product 路由
 const productRoutes = require('./productRoutes');
-const invoiceRoutes = require('./invoiceRoutes');
-const reportRoutes = require('./reportRoutes');
-const statsRoutes = require('./statsRoutes');
-const orderRoutes = require('./orderRoutes');
+const userRoutes = require('./userRoutes');
+const internalproducts = require('./internalProductRoutes');
 
-// Monter les routes
-router.use('/users', userRoutes);
+// 添加路由前缀 /api/products
 router.use('/products', productRoutes);
-router.use('/invoices', invoiceRoutes);
-router.use('/reports', reportRoutes);
-router.use('/stats', statsRoutes);
-router.use('/orders', orderRoutes);
+router.use('/user', userRoutes);
+router.use('/internal-products', internalproducts);
 
 module.exports = router;

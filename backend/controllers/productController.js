@@ -1,269 +1,136 @@
-const { Product } = require('../models');
-const openFoodFactsService = require('../services/openFoodFactsService');
-const logger = require('../utils/logger');
+const { Product } = require('../models'); // 引入 Sequelize Product 模型
 
-// Rechercher un produit par code-barres dans OpenFoodFacts
-exports.getProductByBarcode = async (req, res) => {
-    try {
-        const { barcode } = req.params;
+class ProductController {
 
-        // Vérifier si le code-barres est fourni
-        if (!barcode) {
-            return res.status(400).json({
-                message: 'Le code-barres est requis'
-            });
-        }
+    /**
+     * 通过 ID 查询单个产品
+     * 公开接口，无需管理员权限
+     */
+    static async getProductById(req, res) {
+        try {
+            const { id } = req.params; // 从 URL 参数中获取产品 ID
 
-        // Rechercher dans OpenFoodFacts
-        const product = await openFoodFactsService.getProductByBarcode(barcode);
-        
-        if (!product) {
-            return res.status(404).json({
-                message: `Produit avec code-barres ${barcode} non trouvé`
-            });
-        }
+            // 查找对应的产品
+            const product = await Product.findByPk(id);
 
-        res.json({
-            product
-        });
-    } catch (error) {
-        logger.error(`Erreur lors de la recherche du produit: ${error.message}`);
-        res.status(500).json({
-            message: 'Erreur lors de la recherche du produit',
-            error: error.message
-        });
-    }
-};
-
-// Créer un nouveau produit
-exports.createProduct = async (req, res) => {
-    try {
-        console.log('Données reçues:', req.body);
-        const { name, brand, category, price, stock, barcode, imageUrl } = req.body;
-
-        // Vérifications des champs requis
-        if (!name || !brand || !category) {
-            console.log('Champs manquants:', { name, brand, category });
-            return res.status(400).json({
-                message: 'Le nom, la marque et la catégorie sont requis'
-            });
-        }
-
-        // Vérifier si le produit existe déjà avec le même code-barres
-        if (barcode) {
-            console.log('Vérification du code-barres:', barcode);
-            const existingProduct = await Product.findOne({
-                where: { barcode }
-            });
-            
-            if (existingProduct) {
-                console.log('Produit existant trouvé:', existingProduct.toJSON());
-                return res.status(409).json({
-                    message: 'Un produit avec ce code-barres existe déjà',
-                    product: existingProduct
-                });
+            // 如果未找到产品，返回 404 状态码
+            if (!product) {
+                return res.status(404).json({ message: '未找到指定的产品！' });
             }
+
+            // 返回产品数据
+            res.status(200).json(product);
+        } catch (error) {
+            console.error('Get Product By ID Error:', error);
+            res.status(500).json({ message: '无法加载产品信息！' });
         }
-
-        // Créer le nouveau produit avec Sequelize
-        console.log('Tentative de création du produit avec:', {
-            name,
-            brand,
-            category,
-            price: Number(price) || 0,
-            stock: Number(stock) || 0,
-            barcode: barcode || null,
-            imageUrl: imageUrl || null
-        });
-
-        const product = await Product.create({
-            name,
-            brand,
-            category,
-            price: Number(price) || 0,
-            stock: Number(stock) || 0,
-            barcode: barcode || null,
-            imageUrl: imageUrl || null
-        });
-
-        console.log('Produit créé:', product.toJSON());
-
-        // Récupérer le produit créé avec toutes ses associations
-        const createdProduct = await Product.findByPk(product.id);
-
-        res.status(201).json({
-            message: 'Produit créé avec succès',
-            product: createdProduct
-        });
-    } catch (error) {
-        console.error('Erreur détaillée:', error);
-        logger.error(`Erreur lors de la création du produit: ${error.message}`);
-        res.status(500).json({
-            message: 'Erreur lors de la création du produit',
-            error: error.message
-        });
     }
-};
 
-// Importer un produit depuis OpenFoodFacts
-exports.importProductByBarcode = async (req, res) => {
-    try {
-        const { barcode } = req.body;
 
-        // Vérifier si le code-barres est fourni
-        if (!barcode) {
-            return res.status(400).json({
-                message: 'Le code-barres est requis'
+    /**
+     * 分页获取产品，每页显示 100 个
+     * 公开接口，无需管理员权限
+     */
+    static async getPaginatedProducts(req, res) {
+        try {
+            // 从查询参数中获取页码参数，默认为第 1 页
+            const page = parseInt(req.query.page) || 1;
+
+            // 每页显示 100 个
+            const limit = 20;
+            const offset = (page - 1) * limit;
+
+            // 获取分页产品列表
+            const products = await Product.findAndCountAll({
+                limit,         // 每页限制的数量
+                offset,        // 跳过的数量
+                order: [['id', 'ASC']], // 可根据需求指定排序规则
             });
-        }
 
-        // Vérifier si le produit existe déjà
-        const existingProduct = await Product.findOne({
-            where: { barcode }
-        });
-
-        if (existingProduct) {
-            return res.status(400).json({
-                message: 'Ce produit existe déjà dans la base de données'
+            // 响应数据，包括分页信息
+            res.status(200).json({
+                totalItems: products.count,        // 总产品数量
+                totalPages: Math.ceil(products.count / limit), // 总页数
+                currentPage: page,                // 当前页码
+                products: products.rows,          // 当前页的产品数据
             });
+        } catch (error) {
+            console.error('Get Paginated Products Error:', error);
+            res.status(500).json({ message: 'Impossible de charger la liste des produits！' });
         }
-
-        // Récupérer les données depuis OpenFoodFacts
-        const openFoodFactsProduct = await openFoodFactsService.getProductByBarcode(barcode);
-
-        if (!openFoodFactsProduct) {
-            return res.status(404).json({
-                message: 'Produit non trouvé dans OpenFoodFacts'
-            });
-        }
-
-        // Créer le produit dans la base de données
-        const product = await Product.create({
-            name: openFoodFactsProduct.product_name,
-            brand: openFoodFactsProduct.brands,
-            barcode: barcode,
-            imageUrl: openFoodFactsProduct.image_url,
-            imageSmallUrl: openFoodFactsProduct.image_small_url,
-            category: openFoodFactsProduct.categories_tags?.[0] || 'Non catégorisé',
-            stock: 0,
-            price: 0
-        });
-
-        res.status(201).json({
-            message: 'Produit importé avec succès',
-            product
-        });
-    } catch (error) {
-        logger.error(`Erreur lors de l'importation du produit: ${error.message}`);
-        res.status(500).json({
-            message: "Erreur lors de l'importation du produit",
-            error: error.message
-        });
     }
-};
 
-// Récupérer tous les produits
-exports.getAllProducts = async (req, res) => {
-    try {
-        const products = await Product.findAll({
-            order: [['createdAt', 'DESC']] // Les plus récents en premier
-        });
 
-        // Renvoyer directement le tableau de produits
-        res.json(products);
-    } catch (error) {
-        logger.error(`Erreur lors de la récupération des produits: ${error.message}`);
-        res.status(500).json({
-            message: 'Erreur lors de la récupération des produits',
-            error: error.message
-        });
-    }
-};
-
-// Mettre à jour un produit
-exports.updateProduct = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            name,
-            brand,
-            category,
-            barcode,
-            imageUrl,
-            price,
-            stock
-        } = req.body;
-
-        // Vérifier si le produit existe
-        const product = await Product.findByPk(id);
-        if (!product) {
-            return res.status(404).json({
-                message: 'Produit non trouvé'
-            });
+    /**
+     * 获取所有产品
+     * 公开接口，无需管理员权限
+     */
+    static async getAllProducts(req, res) {
+        try {
+            const products = await Product.findAll();
+            res.status(200).json(products);
+        } catch (error) {
+            console.error('Get All Products Error:', error);
+            res.status(500).json({ message: 'Impossible de charger la liste des produits！' });
         }
-
-        console.log('Données reçues pour mise à jour:', req.body);
-
-        // Préparer les données de mise à jour
-        const updateData = {
-            name,
-            brand,
-            category,
-            barcode,
-            imageUrl,
-            price: Number(price) || product.price, // Garder l'ancienne valeur si la nouvelle est invalide
-            stock: Number(stock) || product.stock  // Garder l'ancienne valeur si la nouvelle est invalide
-        };
-
-        console.log('Données formatées pour mise à jour:', updateData);
-
-        // Mettre à jour le produit
-        await product.update(updateData);
-
-        // Récupérer le produit mis à jour
-        const updatedProduct = await Product.findByPk(id);
-
-        console.log('Produit mis à jour:', updatedProduct.toJSON());
-
-        res.json({
-            message: 'Produit mis à jour avec succès',
-            product: updatedProduct
-        });
-    } catch (error) {
-        console.error('Erreur détaillée:', error);
-        logger.error(`Erreur lors de la mise à jour du produit: ${error.message}`);
-        res.status(500).json({
-            message: 'Erreur lors de la mise à jour du produit',
-            error: error.message
-        });
     }
-};
 
-// Supprimer un produit
-exports.deleteProduct = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Vérifier si le produit existe
-        const product = await Product.findByPk(id);
-        if (!product) {
-            return res.status(404).json({
-                message: 'Produit non trouvé'
-            });
+    /**
+     * 创建新产品
+     * 仅管理员可操作
+     */
+    static async createProduct(req, res) {
+        try {
+            const newProduct = await Product.create(req.body); // req.body 应包含产品信息
+            res.status(201).json(newProduct);
+        } catch (error) {
+            console.error('Create Product Error:', error);
+            res.status(400).json({ message: 'Impossible de créer le produit, veuillez vérifier vos informations de saisie！' });
         }
-
-        // Supprimer le produit
-        await product.destroy();
-
-        res.json({
-            message: 'Produit supprimé avec succès'
-        });
-    } catch (error) {
-        console.error('Erreur détaillée:', error);
-        logger.error(`Erreur lors de la suppression du produit: ${error.message}`);
-        res.status(500).json({
-            message: 'Erreur lors de la suppression du produit',
-            error: error.message
-        });
     }
-};
+
+    /**
+     * 更新产品
+     * 仅管理员可操作
+     */
+    static async updateProduct(req, res) {
+        try {
+            const { id } = req.params; // 从 URL 参数获取产品 ID
+            const updates = req.body; // 获取更新数据
+
+            const product = await Product.findByPk(id); // 查找对应产品
+            if (!product) {
+                return res.status(404).json({ message: 'Le produit spécifié n\'a pas été trouvé！' });
+            }
+
+            const updatedProduct = await product.update(updates); // 更新产品字段
+            res.status(200).json(updatedProduct);
+        } catch (error) {
+            console.error('Update Product Error:', error);
+            res.status(400).json({ message: 'Impossible de mettre à jour les informations sur le produit！' });
+        }
+    }
+
+    /**
+     * 删除产品
+     * 仅管理员可操作
+     */
+    static async deleteProduct(req, res) {
+        try {
+            const { id } = req.params;
+
+            const product = await Product.findByPk(id); // 查找要删除的产品
+            if (!product) {
+                return res.status(404).json({ message: 'Le produit spécifié n\'a pas été trouvé！' });
+            }
+
+            await product.destroy(); // 删除产品
+            res.status(200).json({ message: 'Produit supprimé avec succès！' });
+        } catch (error) {
+            console.error('Delete Product Error:', error);
+            res.status(500).json({ message: 'Impossible de supprimer le produit！' });
+        }
+    }
+}
+
+module.exports = ProductController;
